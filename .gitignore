@@ -128,6 +128,11 @@ obj
 appsettings.json
 local.settings.json
 
+# Secrets and sensitive files
+.secrets/
+*.publishsettings
+*.publish
+
 # Azurite artifacts
 __blobstorage__
 __queuestorage__
