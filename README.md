@@ -5,6 +5,7 @@ A secure, configurable HTTP proxy service built with Azure Functions that enable
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Setting Up Secrets](#setting-up-secrets)
 - [Usage Examples](#usage-examples)
 - [Deployment](#deployment)
 - [API Reference](#api-reference)
@@ -15,6 +16,7 @@ A secure, configurable HTTP proxy service built with Azure Functions that enable
 - [Repository Structure](#repository-structure)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
+- [Security Notice](#security-notice)
 - [License](#license)
 
 ## Quick Start
@@ -24,6 +26,71 @@ A secure, configurable HTTP proxy service built with Azure Functions that enable
 - Python 3.8+
 - Azure Functions Core Tools v4
 - Azure CLI (for deployment)
+- An Azure Storage Account
+- An Azure Application Insights resource (optional but recommended)
+
+### Setting Up Secrets
+
+#### Automated Setup (Recommended)
+
+Use the provided setup script for quick configuration:
+
+```bash
+# Interactive setup with prompts for credentials (recommended)
+python scripts/setup.py --interactive
+
+# Quick setup with template files
+python scripts/setup.py --copy-settings
+
+# Validate existing setup
+python scripts/setup.py --validate
+```
+
+**VS Code Users**: Use the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) → "Tasks: Run Task" → Choose from:
+- **Setup Development Environment** - Interactive setup with credential prompts
+- **Quick Setup (Non-interactive)** - Creates templates and copies settings
+- **Copy Settings for Runtime** - Copies settings from .secrets to project root
+- **Validate Setup** - Checks your configuration
+
+The setup script will:
+- Create the `.secrets/` folder with proper documentation
+- Generate a `local.settings.json` template with placeholders
+- Optionally prompt for your actual Azure credentials
+- Copy settings for the Azure Functions runtime
+- Validate your configuration
+
+#### Manual Setup
+
+If you prefer manual setup:
+
+1. **Create the secrets folder** (if not exists):
+   ```bash
+   mkdir .secrets
+   ```
+
+2. **Create local.settings.json** in `.secrets/` with your Azure credentials:
+   ```json
+   {
+     "IsEncrypted": false,
+     "Values": {
+       "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=YOUR_STORAGE_ACCOUNT;AccountKey=YOUR_STORAGE_KEY;EndpointSuffix=core.windows.net",
+       "FUNCTIONS_WORKER_RUNTIME": "python",
+       "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=YOUR_INSTRUMENTATION_KEY;IngestionEndpoint=https://YOUR_REGION.in.applicationinsights.azure.com/"
+     }
+   }
+   ```
+
+3. **Get your Azure Storage connection string**:
+   - Go to Azure Portal → Storage Accounts → Your Storage Account
+   - Navigate to Access Keys → Copy connection string
+
+4. **Get your Application Insights connection string** (optional):
+   - Go to Azure Portal → Application Insights → Your App Insights resource
+   - Navigate to Properties → Copy Connection String
+
+5. **For deployment, download publish profile**:
+   - Go to Azure Portal → Function Apps → Your Function App
+   - Click "Get publish profile" and save as `.secrets/profile.publishsettings`
 
 ### Local Development
 
@@ -33,17 +100,26 @@ A secure, configurable HTTP proxy service built with Azure Functions that enable
    cd function-proxy
    ```
 
-2. **Install dependencies**
+2. **Set up development environment**
+   ```bash
+   # Automated setup (recommended)
+   python scripts/setup.py --interactive
+   
+   # Or quick setup with templates
+   python scripts/setup.py --copy-settings
+   ```
+
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Start the local development server**
+4. **Start the local development server**
    ```bash
    func start
    ```
 
-4. **Test the proxy**
+5. **Test the proxy**
    ```bash
    curl "http://localhost:7071/api/proxy/jsonplaceholder.typicode.com/posts/1"
    ```
@@ -58,8 +134,13 @@ curl "https://your-function-app.azurewebsites.net/api/proxy/api.example.com/user
 
 ### HTTP Proxy with Scheme Override
 ```bash
-# Proxy to HTTP endpoint using __proxy_scheme parameter
-curl "https://your-function-app.azurewebsites.net/api/proxy/10.0.1.4:80/data?__proxy_scheme=http"
+# Proxy to HTTP endpoint using __proxy_scheme parameter (pie.dev is designed for testing)
+curl "https://your-function-app.azurewebsites.net/api/proxy/pie.dev/get?__proxy_scheme=http"
+
+# Test POST requests to HTTP endpoints
+curl -X POST "https://your-function-app.azurewebsites.net/api/proxy/pie.dev/post?__proxy_scheme=http" \
+  -H "Content-Type: application/json" \
+  -d '{"test": "data"}'
 ```
 
 ### With Query Parameters
@@ -90,7 +171,29 @@ curl "https://your-function-app.azurewebsites.net/api/health"
 
 ## Deployment
 
-### Deploy to Azure
+### Prerequisites
+
+- Azure CLI installed and logged in
+- Azure Functions Core Tools v4
+- An Azure subscription
+
+### Option 1: Deploy Using Publish Profile (Recommended for Quick Setup)
+
+1. **Create Function App in Azure Portal**
+   - Go to [Azure Portal](https://portal.azure.com)
+   - Create a new Function App with Python runtime
+   - Download the publish profile from the Function App overview page
+
+2. **Set up deployment credentials**
+   - Save the downloaded publish profile as `.secrets/profile.publishsettings`
+   - The publish profile contains deployment credentials - keep it secure!
+
+3. **Deploy using VS Code Azure Functions extension**
+   - Install the Azure Functions extension
+   - Right-click on the project and select "Deploy to Function App"
+   - Select your Function App from the list
+
+### Option 2: Deploy Using Azure CLI
 
 1. **Login to Azure**
    ```bash
@@ -116,18 +219,26 @@ curl "https://your-function-app.azurewebsites.net/api/health"
 
 ### Environment Configuration
 
-Update `local.settings.json` for local development or configure Application Settings in Azure:
+**For Local Development:**
+- Configure `.secrets/local.settings.json` with your Azure Storage and Application Insights connection strings
+- Copy to `local.settings.json` for the Functions runtime to pick up
 
+**For Azure Deployment:**
+- Configure Application Settings in the Azure Portal (recommended)
+- Or set environment variables during deployment
+
+**Required Settings:**
 ```json
 {
-  "IsEncrypted": false,
-  "Values": {
-    "AzureWebJobsStorage": "your-storage-connection-string",
-    "FUNCTIONS_WORKER_RUNTIME": "python",
-    "APPLICATIONINSIGHTS_CONNECTION_STRING": "your-app-insights-connection-string"
-  }
+  "AzureWebJobsStorage": "Your Azure Storage connection string",
+  "FUNCTIONS_WORKER_RUNTIME": "python",
+  "APPLICATIONINSIGHTS_CONNECTION_STRING": "Your Application Insights connection string"
 }
 ```
+
+**Where to find these values:**
+- **Azure Storage**: Azure Portal → Storage Account → Access Keys
+- **Application Insights**: Azure Portal → Application Insights → Properties → Connection String
 
 ## API Reference
 
@@ -173,6 +284,8 @@ ALLOWED_PATTERNS = [
     "services.odata.org",        # Exact domain match
     "jsonplaceholder.*",         # Wildcard subdomain
     "*.trusted.com",             # Wildcard subdomain
+    "pie.dev",                   # HTTP testing service
+    "httpbin.org",               # HTTP/HTTPS testing service
     "10.0.1.4",                  # IP address
     "localhost",                 # Local development
     "127.0.0.1",                 # Local development
@@ -194,6 +307,33 @@ ALLOWED_PATTERNS = [
 4. **Request Timeout**: 30-second timeout prevents hanging requests
 
 ## Development
+
+### Setup and Development Tools
+
+#### Setup Script
+The project includes a comprehensive setup script (`scripts/setup.py`) for easy environment configuration:
+
+```bash
+# Interactive setup with credential prompts
+python scripts/setup.py --interactive
+
+# Quick setup with templates
+python scripts/setup.py --copy-settings
+
+# Validate your setup
+python scripts/setup.py --validate
+```
+
+#### VS Code Tasks
+For VS Code users, several tasks are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) → "Tasks: Run Task":
+
+| Task Name | Description |
+|-----------|-------------|
+| **Setup Development Environment** | Interactive setup with credential prompts |
+| **Quick Setup (Non-interactive)** | Creates template files and copies settings |
+| **Copy Settings for Runtime** | Copies local.settings.json to project root |
+| **Validate Setup** | Checks configuration and provides next steps |
+| **func: host start** | Starts the Azure Functions development server |
 
 ### Project Structure
 ```
@@ -219,9 +359,12 @@ function-proxy/
 2. **Update allowlist** if needed
 3. **Test locally** with `func start`
 
-### Testing
+### Local testing
 
 ```bash
+# Make sure you have the local settings configured
+cp .secrets/local.settings.json local.settings.json
+
 # Start local development server
 func start
 
@@ -229,6 +372,10 @@ func start
 curl "http://localhost:7071/api/proxy/httpbin.org/get"
 curl "http://localhost:7071/api/health"
 curl -X POST "http://localhost:7071/api/proxy/httpbin.org/post" -d "test=data"
+
+# Test HTTP endpoints with pie.dev (designed for testing)
+curl "http://localhost:7071/api/proxy/pie.dev/get?__proxy_scheme=http"
+curl -X POST "http://localhost:7071/api/proxy/pie.dev/post?__proxy_scheme=http" -d "test=data"
 ```
 
 ## Architecture
@@ -280,23 +427,23 @@ flowchart TD
     Start([Client Request]) --> Extract[Extract Endpoint Parameter]
     Extract --> CheckEndpoint{Endpoint Exists?}
     
-    CheckEndpoint -->|No| Error400[Return 400: No endpoint specified]
+    CheckEndpoint -->|No| Error400[Return 400 - No endpoint specified]
     CheckEndpoint -->|Yes| CheckScheme[Check __proxy_scheme Parameter]
     
     CheckScheme --> BuildURL{Build Target URL}
     BuildURL -->|Has http:// or https://| UseAsIs[Use endpoint as-is]
-    BuildURL -->|Has __proxy_scheme| AddScheme[Add scheme: scheme://endpoint]
-    BuildURL -->|Neither| DefaultHTTPS[Default to https://endpoint]
+    BuildURL -->|Has __proxy_scheme| AddScheme[Add scheme + endpoint]
+    BuildURL -->|Neither| DefaultHTTPS[Default to https + endpoint]
     
     UseAsIs --> ValidateURL[Validate against allowlist]
     AddScheme --> ValidateScheme{Valid scheme?}
     DefaultHTTPS --> ValidateURL
     
-    ValidateScheme -->|Invalid| Error400Scheme[Return 400: Invalid scheme]
+    ValidateScheme -->|Invalid| Error400Scheme[Return 400 - Invalid scheme]
     ValidateScheme -->|Valid| ValidateURL
     
     ValidateURL --> AllowCheck{Domain allowed?}
-    AllowCheck -->|No| Error403[Return 403: Endpoint not allowed]
+    AllowCheck -->|No| Error403[Return 403 - Endpoint not allowed]
     AllowCheck -->|Yes| PrepareRequest[Prepare Request Headers & Body]
     
     PrepareRequest --> FilterHeaders[Filter hop-by-hop headers]
@@ -304,7 +451,7 @@ flowchart TD
     AddParams --> MakeRequest[Make HTTP request to target]
     
     MakeRequest --> HandleResponse{Request successful?}
-    HandleResponse -->|No| Error502[Return 502: Request failed]
+    HandleResponse -->|No| Error502[Return 502 - Request failed]
     HandleResponse -->|Yes| FilterResponse[Filter response headers]
     
     FilterResponse --> ReturnResponse[Return proxied response]
@@ -322,16 +469,16 @@ flowchart TD
 flowchart LR
     Input[Client Input] --> Parse{Parse Request}
     
-    Parse --> Endpoint[endpoint: "10.0.1.4:80/data"]
-    Parse --> Param[__proxy_scheme: "http"]
+    Parse --> Endpoint["endpoint = pie.dev/get"]
+    Parse --> Param["__proxy_scheme = http"]
     Parse --> Query[Other query params]
     
     Endpoint --> Logic{URL Construction Logic}
     Param --> Logic
     
     Logic -->|endpoint starts with http/https| Direct["target_url = endpoint"]
-    Logic -->|__proxy_scheme provided| Scheme["target_url = scheme://endpoint"]
-    Logic -->|neither| Default["target_url = https://endpoint"]
+    Logic -->|__proxy_scheme provided| Scheme["target_url = scheme + endpoint"]
+    Logic -->|neither| Default["target_url = https + endpoint"]
     
     Direct --> Final[Final URL]
     Scheme --> Final
@@ -354,7 +501,7 @@ flowchart TD
     Parse --> Extract[Extract domain from netloc or path]
     Extract --> CheckPort{Domain has port?}
     
-    CheckPort -->|Yes| RemovePort[Remove port: domain.split(':')[0]]
+    CheckPort -->|Yes| RemovePort["Remove port: domain.split() method"]
     CheckPort -->|No| KeepDomain[Keep domain as-is]
     
     RemovePort --> TestPatterns[Test against regex patterns]
@@ -363,11 +510,11 @@ flowchart TD
     TestPatterns --> Loop{For each pattern}
     Loop --> Match{Pattern matches?}
     
-    Match -->|Yes| Allow[Return True: Allowed]
+    Match -->|Yes| Allow[Return True - Allowed]
     Match -->|No| NextPattern[Try next pattern]
     
     NextPattern --> Loop
-    Loop -->|No more patterns| Deny[Return False: Blocked]
+    Loop -->|No more patterns| Deny[Return False - Blocked]
     
     Allow --> End([End])
     Deny --> End
@@ -391,14 +538,20 @@ function-proxy/
 ├── .gitignore              # Git ignore patterns (Python, Azure, IDE)
 ├── .funcignore             # Azure Functions deployment ignore
 ├── .vscode/                # VS Code workspace configuration
+│   └── tasks.json          # VS Code tasks for setup and development
+├── .secrets/               # 🔒 SECURE: Contains sensitive configuration files
+│   ├── README.md           # Documentation for secrets folder
+│   ├── local.settings.json # Local development settings (Azure Storage, App Insights)
+│   └── profile.publishsettings # Azure deployment credentials (from portal)
 ├── .python_packages/       # Python packages cache
 ├── .venv/                  # Python virtual environment
 ├── __pycache__/            # Python bytecode cache
+├── scripts/                # Setup and utility scripts
+│   └── setup.py            # Development environment setup script
 ├── function_app.py         # Main application logic
 ├── requirements.txt        # Python dependencies
 ├── host.json              # Azure Functions host configuration
-├── local.settings.json    # Local development settings (contains secrets)
-├── profile.publishsettings # Azure publish profile (contains secrets)
+├── local.settings.json    # Copy of secrets for local runtime (gitignored)
 ├── LICENSE                # MIT License
 └── README.md              # Project documentation
 ```
@@ -406,33 +559,59 @@ function-proxy/
 ### Key Files
 
 - **`function_app.py`**: Core application with proxy logic, allowlist configuration, and route handlers
+- **`scripts/setup.py`**: Development environment setup script with interactive configuration
+- **`.vscode/tasks.json`**: VS Code tasks for setup, development, and deployment
 - **`requirements.txt`**: Minimal dependencies (azure-functions, requests)
 - **`host.json`**: Azure Functions runtime configuration with Application Insights
-- **`local.settings.json`**: Local development settings (⚠️ contains secrets, not in git)
+- **`.secrets/local.settings.json`**: Template for local development settings (🔒 contains secrets)
+- **`.secrets/profile.publishsettings`**: Azure deployment credentials (🔒 contains secrets)
+
+### Secrets Management
+
+The `.secrets/` folder contains sensitive configuration files that are excluded from version control:
+
+- **Never commit these files** - they contain API keys, connection strings, and deployment credentials
+- **Local development**: Copy `.secrets/local.settings.json` to `local.settings.json` when needed
+- **Production**: Use Azure Portal Application Settings instead of local files
+- **Deployment**: Use publish profile or Azure CLI authentication
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **CORS Errors**
+1. **Missing local.settings.json**
+   ```
+   ERROR: Missing AzureWebJobsStorage setting
+   ```
+   - Copy configuration: `cp .secrets/local.settings.json local.settings.json`
+   - Ensure your `.secrets/local.settings.json` has valid Azure Storage connection string
+
+2. **CORS Errors**
    - Azure Functions automatically handles CORS for HTTP triggers
    - Ensure your frontend domain is configured in Azure portal if needed
 
-2. **Allowlist Rejections**
+3. **Allowlist Rejections**
    ```
    {"error": "Endpoint not allowed: https://blocked-domain.com"}
    ```
    - Add the domain to `ALLOWED_PATTERNS` in `function_app.py`
 
-3. **Scheme Issues with Local IPs**
+4. **Scheme Issues with Local IPs**
    ```
    {"error": "Request failed: HTTPSConnectionPool..."}
    ```
    - Use `__proxy_scheme=http` parameter for HTTP endpoints
 
-4. **SSL Verification Errors**
+5. **SSL Verification Errors**
    - SSL verification is automatically disabled for HTTP targets
    - For HTTPS targets with invalid certificates, consider adding custom verification logic
+
+6. **Deployment Credential Issues**
+   ```
+   ERROR: Failed to deploy to Azure
+   ```
+   - Ensure `.secrets/profile.publishsettings` is current (download fresh from Azure Portal)
+   - Or use `az login` and deploy via Azure CLI
 
 ### Debugging
 
@@ -471,10 +650,25 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Security Notice
 
-⚠️ **Important**: The `local.settings.json` and `profile.publishsettings` files contain sensitive information and should never be committed to version control. They are included in `.gitignore` for this reason.
+🔒 **Important Security Information**
 
-When deploying to production:
-1. Configure allowed patterns restrictively
-2. Use Application Settings in Azure portal instead of local.settings.json
-3. Enable Application Insights for monitoring
-4. Consider implementing authentication for sensitive endpoints
+### Secrets Management
+This project uses a `.secrets/` folder to manage sensitive configuration files:
+
+- **`.secrets/local.settings.json`**: Contains Azure Storage connection strings, Application Insights keys
+- **`.secrets/profile.publishsettings`**: Contains Azure deployment credentials
+- **`.secrets/README.md`**: Documentation for secrets management
+
+### Security Best Practices
+1. **Never commit secrets**: The `.secrets/` folder is excluded from version control
+2. **Regenerate exposed credentials**: If any secrets are accidentally exposed, regenerate them immediately
+3. **Use Azure Key Vault**: For production deployments, consider using Azure Key Vault for secrets
+4. **Restrict allowlist**: Configure `ALLOWED_PATTERNS` restrictively for production environments
+5. **Enable authentication**: Consider implementing authentication for sensitive endpoints
+6. **Monitor usage**: Use Application Insights to monitor and alert on unusual usage patterns
+
+### Production Deployment Security
+- Use Application Settings in Azure Portal instead of local settings files
+- Enable Managed Identity for service-to-service authentication
+- Configure network restrictions if needed
+- Regularly rotate storage account keys and other credentials

@@ -2,6 +2,66 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "Setup Development Environment",
+			"type": "shell",
+			"command": "python",
+			"args": ["scripts/setup.py", "--interactive"],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			},
+			"problemMatcher": [],
+			"detail": "Interactive setup of .secrets folder and configuration files"
+		},
+		{
+			"label": "Copy Settings for Runtime",
+			"type": "shell",
+			"command": "python",
+			"args": ["scripts/setup.py", "--copy-settings"],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			},
+			"problemMatcher": [],
+			"detail": "Copy local.settings.json from .secrets to project root"
+		},
+		{
+			"label": "Validate Setup",
+			"type": "shell",
+			"command": "python",
+			"args": ["scripts/setup.py", "--validate"],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			},
+			"problemMatcher": [],
+			"detail": "Validate development environment setup"
+		},
+		{
+			"label": "Quick Setup (Non-interactive)",
+			"type": "shell",
+			"command": "python",
+			"args": ["scripts/setup.py", "--copy-settings"],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			},
+			"problemMatcher": [],
+			"detail": "Quick setup with template files and runtime copy"
+		},
+		{
 			"type": "func",
 			"label": "func: host start",
 			"command": "host start",

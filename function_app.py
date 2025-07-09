@@ -11,7 +11,9 @@ ALLOWED_PATTERNS = [
     "services.odata.org",
     "jsonplaceholder.*",
     "*.trusted.com",
-    "10.0.1.4",  # Add your local IP
+    "pie.dev",       # HTTP testing service
+    "httpbin.org",   # HTTP/HTTPS testing service
+    "10.0.1.4",      # Add your local IP
     "localhost",
     "127.0.0.1",
     "*",  # Matches any domain
